@@ -29,12 +29,18 @@ jobs:
           mkdir -p $HOME/android-sdk/cmdline-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
           unzip -q cmdline-tools.zip -d $HOME/android-sdk/cmdline-tools
-          export ANDROID_HOME=$HOME/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/cmdline-tools/bin:$PATH
-          yes | $HOME/android-sdk/cmdline-tools/cmdline-tools/bin/sdkmanager --licenses
-          $HOME/android-sdk/cmdline-tools/cmdline-tools/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
 
-          # Copy build-tools into .buildozer where Buildozer looks
+          # Fix sdkmanager path for Buildozer
+          mkdir -p $HOME/android-sdk/tools/bin
+          ln -s $HOME/android-sdk/cmdline-tools/cmdline-tools/bin/* $HOME/android-sdk/tools/bin/
+
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$ANDROID_HOME/tools/bin:$PATH
+
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+
+          # Copy build-tools into .buildozer for Buildozer
           mkdir -p $HOME/.buildozer/android/platform/android-sdk/
           cp -r $ANDROID_HOME/build-tools $HOME/.buildozer/android/platform/android-sdk/
           cp -r $ANDROID_HOME/platforms $HOME/.buildozer/android/platform/android-sdk/
