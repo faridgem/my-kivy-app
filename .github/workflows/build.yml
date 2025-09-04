@@ -76,7 +76,7 @@ jobs:
         run: |
           export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-          export PATH=$ANDROID_HOME/tools/bin:$JAVA_HOME/bin:$PATH
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$JAVA_HOME/bin:$PATH
           
           # Initialize buildozer if buildozer.spec doesn't exist
           if [ ! -f "buildozer.spec" ]; then
