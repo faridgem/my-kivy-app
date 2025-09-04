@@ -1,29 +1,19 @@
 [app]
 title = MyKivyApp
 package.name = mykivyapp
-package.domain = com.YOURDOMAIN # e.g. com.fabi
+package.domain = org.example
 source.dir = .
-source.include_exts = py,kv,png,jpg,ttf,atlas,json,txt,ini,md
-requirements = python3,kivy # add others: requests, urllib3, etc.
+source.include_exts = py,png,jpg,kv,atlas
+version = 0.1
+requirements = python3,kivy
 orientation = portrait
 fullscreen = 0
 
-
-# You can pin/adjust these if needed
-# android.api = 33 # Target API (optional; Buildozer picks sane default)
-# android.minapi = 21 # Minimum supported
-android.archs = arm64-v8a, armeabi-v7a
-
-
-# Permissions (add only if needed)
-# android.permissions = INTERNET,ACCESS_NETWORK_STATE
-
-
-# App icons/splash (optional, provide files)
-# icon.filename = assets/icon.png
-# presplash.filename = assets/presplash.png
-
-
 [buildozer]
 log_level = 2
-warn_on_root = 0
+warn_on_root = 1
+
+[app.android]
+# Optional icon/splash:
+# icon.filename = %(source.dir)s/data/icon.png
+# presplash.filename = %(source.dir)s/data/presplash.png
