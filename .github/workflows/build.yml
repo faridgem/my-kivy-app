@@ -26,25 +26,24 @@ jobs:
 
       - name: Install Android SDK & NDK
         run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip -d $HOME/android-sdk/cmdline-tools
-
-          # Fix sdkmanager path for Buildozer
-          mkdir -p $HOME/android-sdk/tools/bin
-          ln -s $HOME/android-sdk/cmdline-tools/cmdline-tools/bin/* $HOME/android-sdk/tools/bin/
-
-          export ANDROID_HOME=$HOME/android-sdk
+          # Create .buildozer sdk folder
+          mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+          
+          # Download Google command-line tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+          
+          # Create legacy tools/bin for Buildozer
+          mkdir -p $HOME/.buildozer/android/platform/android-sdk/tools/bin
+          cp -r $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools/bin/* $HOME/.buildozer/android/platform/android-sdk/tools/bin/
+          
+          # Set environment variables
+          export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
           export PATH=$ANDROID_HOME/tools/bin:$PATH
-
+          
+          # Accept licenses and install platforms/build-tools/NDK
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
-
-          # Copy build-tools into .buildozer for Buildozer
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk/
-          cp -r $ANDROID_HOME/build-tools $HOME/.buildozer/android/platform/android-sdk/
-          cp -r $ANDROID_HOME/platforms $HOME/.buildozer/android/platform/android-sdk/
-          cp -r $ANDROID_HOME/platform-tools $HOME/.buildozer/android/platform/android-sdk/
 
       - name: Build APK
         run: |
