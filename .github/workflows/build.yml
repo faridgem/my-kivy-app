@@ -1,3 +1,4 @@
+
 name: Build Kivy APK
 on:
   push:
@@ -76,10 +77,12 @@ jobs:
           sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-33"
           sdkmanager --sdk_root=$ANDROID_HOME "build-tools;33.0.2"
           
-          # Download and install NDK manually since sdkmanager might have issues
+          # Download and install NDK manually
           cd /tmp
           wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip -O ndk.zip
           unzip -q ndk.zip
+          # Ensure NDK directory exists before moving
+          mkdir -p $ANDROID_HOME/ndk
           mv android-ndk-r25c $ANDROID_HOME/ndk/25.2.9519653
           
           echo "Android SDK setup complete"
