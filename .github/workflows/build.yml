@@ -75,8 +75,17 @@ jobs:
       - name: Build APK
         run: |
           export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
+          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$JAVA_HOME/bin:$PATH
+          export PATH=$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools/bin:$JAVA_HOME/bin:$PATH
+          
+          # Debug: Show what's in the Android SDK directory
+          echo "Contents of Android SDK:"
+          ls -la $ANDROID_HOME/
+          echo "Contents of tools:"
+          ls -la $ANDROID_HOME/tools/ || echo "No tools directory"
+          echo "Contents of tools/bin:"
+          ls -la $ANDROID_HOME/tools/bin/ || echo "No tools/bin directory"
           
           # Initialize buildozer if buildozer.spec doesn't exist
           if [ ! -f "buildozer.spec" ]; then
