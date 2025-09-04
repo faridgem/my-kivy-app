@@ -41,30 +41,49 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython
       
-      - name: Install Android SDK & NDK
+      - name: Setup Android SDK manually with correct structure
         run: |
-          # Create .buildozer sdk folder
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk
-          
-          # Download older compatible command-line tools (6858069 works with Buildozer)
-          wget https://dl.google.com/android/repository/commandlinetools-linux-6858069_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip -d $HOME/.buildozer/android/platform/android-sdk
-          
-          # Move to correct structure for Buildozer
-          mv $HOME/.buildozer/android/platform/android-sdk/cmdline-tools $HOME/.buildozer/android/platform/android-sdk/tools
-          
-          # Set environment variables
+          # Set up directories
           export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
-          export PATH=$ANDROID_HOME/tools/bin:$PATH
+          mkdir -p $ANDROID_HOME
+          
+          # Download command line tools
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          
+          # Create correct directory structure
+          mkdir -p $ANDROID_HOME/cmdline-tools/latest
+          mv cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/
+          
+          # Create legacy tools directory for Buildozer
+          mkdir -p $ANDROID_HOME/tools/bin
+          cp $ANDROID_HOME/cmdline-tools/latest/bin/* $ANDROID_HOME/tools/bin/
+          
+          # Set permissions
+          chmod +x $ANDROID_HOME/cmdline-tools/latest/bin/*
+          chmod +x $ANDROID_HOME/tools/bin/*
+          
+          # Set environment
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-          export PATH=$JAVA_HOME/bin:$PATH
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
           
-          # Make sdkmanager executable
-          chmod +x $ANDROID_HOME/tools/bin/sdkmanager
+          # Accept licenses with explicit SDK root
+          yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
           
-          # Accept licenses and install platforms/build-tools/NDK
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/tools/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+          # Install required packages
+          sdkmanager --sdk_root=$ANDROID_HOME "platform-tools"
+          sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-33"
+          sdkmanager --sdk_root=$ANDROID_HOME "build-tools;33.0.2"
+          
+          # Download and install NDK manually since sdkmanager might have issues
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip -O ndk.zip
+          unzip -q ndk.zip
+          mv android-ndk-r25c $ANDROID_HOME/ndk/25.2.9519653
+          
+          echo "Android SDK setup complete"
+          ls -la $ANDROID_HOME/
       
       - name: Cache buildozer global directory
         uses: actions/cache@v4
@@ -79,17 +98,20 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
           export PATH=$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools/bin:$JAVA_HOME/bin:$PATH
           
-          # Debug: Show what's in the Android SDK directory
-          echo "Contents of Android SDK:"
-          ls -la $ANDROID_HOME/
-          echo "Contents of tools:"
-          ls -la $ANDROID_HOME/tools/ || echo "No tools directory"
-          echo "Contents of tools/bin:"
-          ls -la $ANDROID_HOME/tools/bin/ || echo "No tools/bin directory"
-          
           # Initialize buildozer if buildozer.spec doesn't exist
           if [ ! -f "buildozer.spec" ]; then
             buildozer init
+          fi
+          
+          # Modify buildozer.spec to use correct paths if it exists
+          if [ -f "buildozer.spec" ]; then
+            # Ensure correct Android API and NDK versions are set
+            sed -i 's/^#android.api = .*/android.api = 33/' buildozer.spec
+            sed -i 's/^android.api = .*/android.api = 33/' buildozer.spec
+            sed -i 's/^#android.ndk = .*/android.ndk = 25.2.9519653/' buildozer.spec
+            sed -i 's/^android.ndk = .*/android.ndk = 25.2.9519653/' buildozer.spec
+            sed -i 's/^#android.sdk = .*/android.sdk = 33/' buildozer.spec
+            sed -i 's/^android.sdk = .*/android.sdk = 33/' buildozer.spec
           fi
           
           # Build the APK
