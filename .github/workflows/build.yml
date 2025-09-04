@@ -1,41 +1,57 @@
 name: Build Kivy APK
-
 on:
   push:
+    branches: [ "main" ]
+  pull_request:
     branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
-      - name: Install dependencies
+      
+      - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y python3-pip python3-setuptools python3-wheel git zip openjdk-11-jdk unzip wget
+          sudo apt install -y \
+            python3-pip \
+            python3-setuptools \
+            python3-wheel \
+            git \
+            zip \
+            unzip \
+            wget \
+            openjdk-11-jdk \
+            build-essential \
+            libssl-dev \
+            libffi-dev \
+            python3-dev \
+            libltdl-dev
+      
+      - name: Install Python dependencies
+        run: |
           pip install --upgrade pip
           pip install buildozer cython
-
+      
       - name: Install Android SDK & NDK
         run: |
           # Create .buildozer sdk folder
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+          mkdir -p $HOME/.buildozer/android/platform/android-sdk
           
-          # Download older command-line tools compatible with Buildozer
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip -d $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+          # Download older compatible command-line tools (6858069 works with Buildozer)
+          wget https://dl.google.com/android/repository/commandlinetools-linux-6858069_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d $HOME/.buildozer/android/platform/android-sdk
           
-          # Create legacy tools/bin for Buildozer
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk/tools/bin
-          cp -r $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools/bin/* $HOME/.buildozer/android/platform/android-sdk/tools/bin/
+          # Move to correct structure for Buildozer
+          mv $HOME/.buildozer/android/platform/android-sdk/cmdline-tools $HOME/.buildozer/android/platform/android-sdk/tools
           
           # Set environment variables
           export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
@@ -43,17 +59,46 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
           export PATH=$JAVA_HOME/bin:$PATH
           
+          # Make sdkmanager executable
+          chmod +x $ANDROID_HOME/tools/bin/sdkmanager
+          
           # Accept licenses and install platforms/build-tools/NDK
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
-
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/tools/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+      
+      - name: Cache buildozer global directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          key: buildozer-${{ hashFiles('**/.buildozer') }}
+      
       - name: Build APK
         run: |
-          buildozer init || true
+          export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
+          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+          export PATH=$ANDROID_HOME/tools/bin:$JAVA_HOME/bin:$PATH
+          
+          # Initialize buildozer if buildozer.spec doesn't exist
+          if [ ! -f "buildozer.spec" ]; then
+            buildozer init
+          fi
+          
+          # Build the APK
           buildozer -v android debug
-
-      - name: Upload APK
+      
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kivy-apk
+          name: kivy-apk-${{ github.sha }}
           path: bin/*.apk
+          retention-days: 30
+      
+      - name: Upload build logs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-logs-${{ github.sha }}
+          path: |
+            .buildozer/
+            *.log
+          retention-days: 7
