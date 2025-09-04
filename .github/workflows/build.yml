@@ -1,4 +1,3 @@
-
 name: Build Kivy APK
 on:
   push:
@@ -40,42 +39,47 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
-          pip install buildozer cython
+          pip install buildozer cython==0.29.36
       
       - name: Setup Android SDK manually with correct structure
         run: |
           # Set up directories
           export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
+          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
           mkdir -p $ANDROID_HOME
           
           # Download command line tools
           cd /tmp
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d cmdline-tools
           
           # Create correct directory structure
           mkdir -p $ANDROID_HOME/cmdline-tools/latest
-          mv cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/
+          mv cmdline-tools/cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/
           
           # Create legacy tools directory for Buildozer
           mkdir -p $ANDROID_HOME/tools/bin
           cp $ANDROID_HOME/cmdline-tools/latest/bin/* $ANDROID_HOME/tools/bin/
           
           # Set permissions
-          chmod +x $ANDROID_HOME/cmdline-tools/latest/bin/*
-          chmod +x $ANDROID_HOME/tools/bin/*
+          chmod -R +x $ANDROID_HOME/cmdline-tools/latest/bin
+          chmod -R +x $ANDROID_HOME/tools/bin
           
           # Set environment
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin:$JAVA_HOME/bin:$PATH
+          
+          # Verify sdkmanager is executable
+          ls -la $ANDROID_HOME/cmdline-tools/latest/bin
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --version || echo "sdkmanager failed to run"
           
           # Accept licenses with explicit SDK root
-          yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
           
           # Install required packages
-          sdkmanager --sdk_root=$ANDROID_HOME "platform-tools"
-          sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-33"
-          sdkmanager --sdk_root=$ANDROID_HOME "build-tools;33.0.2"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-33"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "build-tools;33.0.2"
           
           # Download and install NDK manually
           cd /tmp
@@ -85,8 +89,16 @@ jobs:
           mkdir -p $ANDROID_HOME/ndk
           mv android-ndk-r25c $ANDROID_HOME/ndk/25.2.9519653
           
+          # Set permissions for NDK
+          chmod -R +x $ANDROID_HOME/ndk/25.2.9519653
+          
+          # Unset conflicting NDK environment variables
+          unset ANDROID_NDK ANDROID_NDK_HOME ANDROID_NDK_ROOT ANDROID_NDK_LATEST_HOME
+          
+          # Debugging: Verify directory structure
           echo "Android SDK setup complete"
           ls -la $ANDROID_HOME/
+          ls -la $ANDROID_HOME/ndk/
       
       - name: Cache buildozer global directory
         uses: actions/cache@v4
@@ -101,23 +113,25 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
           export PATH=$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools/bin:$JAVA_HOME/bin:$PATH
           
+          # Unset conflicting NDK environment variables
+          unset ANDROID_NDK ANDROID_NDK_HOME ANDROID_NDK_ROOT ANDROID_NDK_LATEST_HOME
+          
           # Initialize buildozer if buildozer.spec doesn't exist
           if [ ! -f "buildozer.spec" ]; then
             buildozer init
           fi
           
-          # Modify buildozer.spec to use correct paths if it exists
+          # Modify buildozer.spec to use correct paths
           if [ -f "buildozer.spec" ]; then
-            # Ensure correct Android API and NDK versions are set
-            sed -i 's/^#android.api = .*/android.api = 33/' buildozer.spec
-            sed -i 's/^android.api = .*/android.api = 33/' buildozer.spec
-            sed -i 's/^#android.ndk = .*/android.ndk = 25.2.9519653/' buildozer.spec
-            sed -i 's/^android.ndk = .*/android.ndk = 25.2.9519653/' buildozer.spec
-            sed -i 's/^#android.sdk = .*/android.sdk = 33/' buildozer.spec
-            sed -i 's/^android.sdk = .*/android.sdk = 33/' buildozer.spec
+            sed -i 's|^#android.api = .*|android.api = 33|' buildozer.spec
+            sed -i 's|^android.api = .*|android.api = 33|' buildozer.spec
+            sed -i 's|^#android.ndk = .*|android.ndk = 25.2.9519653|' buildozer.spec
+            sed -i 's|^android.ndk = .*|android.ndk = 25.2.9519653|' buildozer.spec
+            sed -i 's|^#android.sdk = .*|android.sdk = 33|' buildozer.spec
+            sed -i 's|^android.sdk = .*|android.sdk = 33|' buildozer.spec
           fi
           
-          # Build the APK
+          # Build the APK with verbose logging
           buildozer -v android debug
       
       - name: Upload APK artifact
@@ -136,3 +150,5 @@ jobs:
             .buildozer/
             *.log
           retention-days: 7
+
+</ Artifact>
